@@ -8,6 +8,7 @@ public class VehicleEntity {
     private double height;
     private double capacity;
     
+    
     private void VehicleEntity(){};        
     private void VehicleEntity(String p, String m, double l, double h, double c){        
         plateNumber=p;
@@ -49,7 +50,7 @@ public class VehicleEntity {
     } 
 
     /*
-     * PATTERN SINGLETON, fà in modo che ci sia sempre una sola istanza di Vehicle.
+     * PATTERN SINGLETON, Makes sure that there is always only one Vehicle instance.
     */
     public static VehicleEntity getVehicleEntity(){
         if(instance==null) 
@@ -60,8 +61,11 @@ public class VehicleEntity {
     
     public static VehicleEntity getEmptyVehicle(){
         instance=new VehicleEntity();
-        VehicleEntity.getEmptyVehicle();
         
         return (instance);
     }
+
+    
+    
+    
 }

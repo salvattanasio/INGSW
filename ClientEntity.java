@@ -1,4 +1,5 @@
 package ingsftw;
+
 public class ClientEntity {
     private static ClientEntity instance=null;
     private String cf;
@@ -6,9 +7,8 @@ public class ClientEntity {
     private String surname;
     private String address;
     private String city;
-    private String cap;         //String di 5 char, la 6 si usa solo per stati esteri.     
-    private String telephone;   //meglio tenerlo String perchè: int pochi numeri per rappr il n_tel,
-                                //double e long rischiano il data loss.
+    private String cap;         //This string will be 5 characters long, 6 only in case of non italian addresses.
+    private String telephone;   
     
     private void ClientEntity(){};
     private void ClientEntity(String c, String n, String s, String a, String ca, String t, String ci){
@@ -42,10 +42,10 @@ public class ClientEntity {
     public void setCity(String t){
         city=t;
     }
+    
     public String getCity(){
         return(city);
     }
-    
     public String getCf(){
         return(cf);
     }
@@ -77,4 +77,22 @@ public class ClientEntity {
         instance=new ClientEntity();
         return (instance);
     }
+    
+    
+    /**
+     * This method is used to get all the address information given from a client and concatenates them in one string.
+     * 
+     * @param address
+     * @param cap
+     * @param city
+     * @return 
+     */
+    public String concatAddress(String address, String cap, String city){
+        String ret=address+",+"+cap+",+"+city;
+        ret=ret.replace(" ","+");
+        
+        return (ret);
+    }
+    
+    
 }

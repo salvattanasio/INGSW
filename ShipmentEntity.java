@@ -11,10 +11,13 @@ public class ShipmentEntity {
     private LocalDateTime arrivalTime;
     private double weight;
     private double volume;
+    private String idShip;
+
     
         
     private void ShipmentEntity(){};
-    private void ShipmentEntity(String c, String d, String v, LocalDateTime dt, LocalDateTime at, double w, double vo){
+    private void ShipmentEntity(String i, String c, String d, String v, LocalDateTime dt, LocalDateTime at, double w, double vo){
+        idShip=i;
         idClient=c;
         idDriver=d;
         idVehicle=v;
@@ -36,7 +39,12 @@ public class ShipmentEntity {
     public LocalDateTime getArrivalTime(){
         return arrivalTime;
     }
-    
+    public void setIdShip(String id){
+        idShip=id;
+    }
+    public String getIdShip(){
+        return idShip;
+    }
     
     public void setIdClient(String c){
         idClient=c;
@@ -78,7 +86,9 @@ public class ShipmentEntity {
     
     public static ShipmentEntity getEmptyShipment(){
         instance=new ShipmentEntity();
-        ClientEntity.getEmptyClient();
         return instance;
     }
+    
+    
+    
 }

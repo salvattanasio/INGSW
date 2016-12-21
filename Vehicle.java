@@ -1,102 +1,55 @@
 package ingsftw;
 
-import static ingsftw.Menus.press;
 import java.awt.Toolkit;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import javax.swing.JOptionPane;
 
 
 public class Vehicle extends javax.swing.JFrame {
-    private VehicleEntity v;
-    protected Statement stmt;
+    private static Log15Control logctrl;
+    private String press;
+    
+    
     
     public Vehicle() {
+        logctrl=new Log15Control();
+        press="insert";
+         
         initComponents();
         setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("truck1.jpg")));
-        v=VehicleEntity.getVehicleEntity();
+        setTitle("Log'15_SoftEngUniNa");
     }
-      
-    public void insertVehicle(VehicleEntity v){
-        try{
-            stmt = DatabaseConfig.defaultConnection.createStatement();
-      
-            String  sql="INSERT INTO VEHICLE VALUES ('";
-                    sql+=v.getPlateNumber() + "','";
-                    sql+=v.getModel() + "', "; 
-                    sql+=v.getHeight() + ", ";
-                    sql+=v.getLength() +")";
+     
+    public Vehicle(String p) {
+        logctrl=new Log15Control();
+        press=p;
         
-            stmt.executeUpdate(sql);
-            JOptionPane.showMessageDialog(null, "Operation Successful");
-        } 
-        catch(SQLException ex){
-            Logger.getLogger(Vehicle.class.getName()).log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(null, "Errore: " + ex);
-        }   
-    }
-    
-    public void deleteVehicle(String plate){
-        try{
-            stmt = DatabaseConfig.defaultConnection.createStatement();
-        
-            String sql ="DELETE VEHICLE WHERE plate_number ='"+plate+"'";
-        
-            stmt.executeUpdate(sql);
-            JOptionPane.showMessageDialog(null, "Operation Successful");
-        }        
-        catch(SQLException ex){
-            Logger.getLogger(Vehicle.class.getName()).log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(null, "Errore: " + ex);
-        }
-    }
-    
-    public void modifyVehicle(VehicleEntity v, String oldplate){
-        try{
-            stmt = DatabaseConfig.defaultConnection.createStatement();
-       
-            String  sql ="UPDATE VEHICLE SET plate_number = '"+v.getPlateNumber();
-                    sql+="', model = '"+v.getModel(); 
-                    sql+="' , height =" +v.getHeight();
-                    sql+=", length ="+v.getLength();
-                    sql+=" WHERE plate_number ='"+oldplate+"'";
-        
-            stmt.executeUpdate(sql);
-            JOptionPane.showMessageDialog(null, "Operation Successful");
-        } 
-        catch(SQLException ex){
-            Logger.getLogger(Vehicle.class.getName()).log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(null, "Errore: " + ex);
-        } 
+        initComponents();
+        setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("truck1.jpg")));
+        setTitle("Log'15_SoftEngUniNa");
     }
     
     /* 
-     * Riempie i form di Vehicle con i dati presi dalla tabella in Menu Frame.
+     * Fills all the Vehicle's forms with the information taken from the table in Menus.
     */
     public void fillForm(VehicleEntity v){
         oldPlateLabel.setVisible(true);
         oldPlateField.setVisible(true);
+        oldPlateNumberFrame.setVisible(true);
         
         oldPlateField.setText(v.getPlateNumber());
         plateField.setText(v.getPlateNumber());
         lengthField.setText(((Double)v.getLength()).toString());
         heightField.setText(((Double)v.getHeight()).toString());
-        modelField.setText(v.getModel());  
+        modelField.setText(v.getModel()); 
+        capacityField.setText(((Double)v.getCapacity()).toString());
     }
-    /*
-    *   Richiama/Crea l'istanza di vehicle e setta gli attributi con i dati presi da table.
-    */
-    public void setVehicleFromTable(javax.swing.JTable table){
-            v=VehicleEntity.getVehicleEntity();
-            
-            v.setPlateNumber(table.getValueAt(table.getSelectedRow(), 0).toString());
-            v.setModel(table.getValueAt(table.getSelectedRow(), 1).toString());
-            v.setHeight(Double.valueOf(table.getValueAt(table.getSelectedRow(), 2).toString()));
-            v.setLength(Double.valueOf(table.getValueAt(table.getSelectedRow(), 3).toString()));
-            
-            fillForm(v);
+    
+    public void refreshFields(){
+        plateField.setText(null);
+        modelField.setText(null);
+        heightField.setText(null);
+        lengthField.setText(null);     
+        capacityField.setText(null);   
     }
     
     
@@ -110,85 +63,34 @@ public class Vehicle extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        jPanel3 = new javax.swing.JPanel();
+        Home = new javax.swing.JButton();
+        logOut = new javax.swing.JButton();
+        titleLabel = new javax.swing.JLabel();
+        jPanel2 = new javax.swing.JPanel();
+        vehiclePanel2 = new javax.swing.JPanel();
+        capacityLabel = new javax.swing.JLabel();
+        capacityField = new javax.swing.JTextField();
+        oldPlateNumberFrame = new javax.swing.JPanel();
+        oldPlateLabel = new javax.swing.JLabel();
+        oldPlateField = new javax.swing.JTextField();
         vehiclePanel = new javax.swing.JPanel();
         plateField = new javax.swing.JTextField();
         plateLabel = new javax.swing.JLabel();
         modelField = new javax.swing.JTextField();
         modelLabel = new javax.swing.JLabel();
-        jPanel3 = new javax.swing.JPanel();
-        logOut = new javax.swing.JButton();
-        Home = new javax.swing.JButton();
-        jPanel1 = new javax.swing.JPanel();
-        oldPlateField = new javax.swing.JTextField();
-        oldPlateLabel = new javax.swing.JLabel();
-        Ok = new javax.swing.JButton();
         vehiclePanel1 = new javax.swing.JPanel();
         lengthLabel = new javax.swing.JLabel();
         heightField = new javax.swing.JTextField();
         lengthField = new javax.swing.JTextField();
         heigthLabel = new javax.swing.JLabel();
-        vehiclePanel2 = new javax.swing.JPanel();
-        capacityLabel = new javax.swing.JLabel();
-        capacityField = new javax.swing.JTextField();
+        confirm = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        vehiclePanel.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)), "Registry"));
+        jPanel3.setBackground(new java.awt.Color(255, 255, 255));
 
-        plateField.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                plateFieldActionPerformed(evt);
-            }
-        });
-
-        plateLabel.setForeground(new java.awt.Color(204, 0, 0));
-        plateLabel.setText("Plate Number");
-
-        modelField.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                modelFieldActionPerformed(evt);
-            }
-        });
-
-        modelLabel.setForeground(new java.awt.Color(204, 0, 0));
-        modelLabel.setText("Model ");
-
-        javax.swing.GroupLayout vehiclePanelLayout = new javax.swing.GroupLayout(vehiclePanel);
-        vehiclePanel.setLayout(vehiclePanelLayout);
-        vehiclePanelLayout.setHorizontalGroup(
-            vehiclePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(vehiclePanelLayout.createSequentialGroup()
-                .addGap(0, 0, 0)
-                .addGroup(vehiclePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(vehiclePanelLayout.createSequentialGroup()
-                        .addComponent(modelLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 89, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(modelField))
-                    .addGroup(vehiclePanelLayout.createSequentialGroup()
-                        .addComponent(plateLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 89, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(plateField))))
-        );
-        vehiclePanelLayout.setVerticalGroup(
-            vehiclePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(vehiclePanelLayout.createSequentialGroup()
-                .addGroup(vehiclePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(plateLabel)
-                    .addComponent(plateField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(vehiclePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(modelLabel)
-                    .addComponent(modelField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(0, 0, 0))
-        );
-
-        logOut.setIcon(new javax.swing.ImageIcon(getClass().getResource("/icons/logout.png"))); // NOI18N
-        logOut.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                logOutActionPerformed(evt);
-            }
-        });
-
+        Home.setBackground(new java.awt.Color(255, 255, 255));
         Home.setIcon(new javax.swing.ImageIcon(getClass().getResource("/icons/home.png"))); // NOI18N
         Home.setBorder(null);
         Home.addActionListener(new java.awt.event.ActionListener() {
@@ -197,25 +99,86 @@ public class Vehicle extends javax.swing.JFrame {
             }
         });
 
+        logOut.setBackground(new java.awt.Color(255, 255, 255));
+        logOut.setIcon(new javax.swing.ImageIcon(getClass().getResource("/icons/logout.png"))); // NOI18N
+        logOut.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                logOutActionPerformed(evt);
+            }
+        });
+
+        titleLabel.setFont(new java.awt.Font("Tahoma", 1, 24)); // NOI18N
+        titleLabel.setForeground(new java.awt.Color(0, 153, 255));
+        titleLabel.setText("VEHICLE MANAGEMENT");
+
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
         jPanel3Layout.setHorizontalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
-                .addContainerGap(304, Short.MAX_VALUE)
-                .addComponent(logOut, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(3, 3, 3)
-                .addComponent(Home)
-                .addGap(0, 0, 0))
+                .addGap(23, 23, 23)
+                .addComponent(titleLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 401, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(logOut, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(32, 32, 32)
+                .addComponent(Home, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap())
         );
         jPanel3Layout.setVerticalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
-                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(Home, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 38, Short.MAX_VALUE)
-                    .addComponent(logOut, javax.swing.GroupLayout.PREFERRED_SIZE, 0, Short.MAX_VALUE))
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(logOut, javax.swing.GroupLayout.DEFAULT_SIZE, 60, Short.MAX_VALUE)
+                    .addComponent(Home, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(titleLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
+
+        jPanel2.setBackground(new java.awt.Color(255, 255, 255));
+
+        vehiclePanel2.setBackground(new java.awt.Color(255, 255, 255));
+        vehiclePanel2.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 153, 255), 2), "Cargo", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Tahoma", 1, 14), new java.awt.Color(0, 153, 255))); // NOI18N
+
+        capacityLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+        capacityLabel.setForeground(new java.awt.Color(204, 0, 0));
+        capacityLabel.setText("Capacity (tons)");
+
+        capacityField.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                capacityFieldActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout vehiclePanel2Layout = new javax.swing.GroupLayout(vehiclePanel2);
+        vehiclePanel2.setLayout(vehiclePanel2Layout);
+        vehiclePanel2Layout.setHorizontalGroup(
+            vehiclePanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(vehiclePanel2Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(capacityLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 101, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(capacityField, javax.swing.GroupLayout.PREFERRED_SIZE, 74, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 34, Short.MAX_VALUE))
+        );
+        vehiclePanel2Layout.setVerticalGroup(
+            vehiclePanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(vehiclePanel2Layout.createSequentialGroup()
+                .addGap(19, 19, 19)
+                .addGroup(vehiclePanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(capacityLabel)
+                    .addComponent(capacityField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(0, 20, Short.MAX_VALUE))
+        );
+
+        oldPlateNumberFrame.setVisible(false);
+        oldPlateNumberFrame.setBackground(new java.awt.Color(255, 255, 255));
+        oldPlateNumberFrame.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 153, 255), 2));
+
+        oldPlateLabel.setVisible(false);
+        oldPlateLabel.setBackground(new java.awt.Color(255, 255, 255));
+        oldPlateLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+        oldPlateLabel.setText("Old Plate Number");
 
         oldPlateField.setVisible(false);
         oldPlateField.setEnabled(false);
@@ -225,36 +188,86 @@ public class Vehicle extends javax.swing.JFrame {
             }
         });
 
-        oldPlateLabel.setVisible(false);
-        oldPlateLabel.setText("Old Plate Number");
-
-        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
-        jPanel1.setLayout(jPanel1Layout);
-        jPanel1Layout.setHorizontalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
-                .addGap(0, 3, Short.MAX_VALUE)
-                .addComponent(oldPlateLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 83, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+        javax.swing.GroupLayout oldPlateNumberFrameLayout = new javax.swing.GroupLayout(oldPlateNumberFrame);
+        oldPlateNumberFrame.setLayout(oldPlateNumberFrameLayout);
+        oldPlateNumberFrameLayout.setHorizontalGroup(
+            oldPlateNumberFrameLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(oldPlateNumberFrameLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(oldPlateLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 108, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addComponent(oldPlateField, javax.swing.GroupLayout.PREFERRED_SIZE, 88, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(38, Short.MAX_VALUE))
+        );
+        oldPlateNumberFrameLayout.setVerticalGroup(
+            oldPlateNumberFrameLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(oldPlateNumberFrameLayout.createSequentialGroup()
+                .addGap(0, 9, Short.MAX_VALUE)
+                .addGroup(oldPlateNumberFrameLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(oldPlateLabel)
+                    .addComponent(oldPlateField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addContainerGap())
         );
-        jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                .addComponent(oldPlateLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(oldPlateField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-        );
 
-        Ok.setText("Ok");
-        Ok.addActionListener(new java.awt.event.ActionListener() {
+        vehiclePanel.setBackground(new java.awt.Color(255, 255, 255));
+        vehiclePanel.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 153, 255), 2), "Registry", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Tahoma", 1, 14), new java.awt.Color(0, 153, 255))); // NOI18N
+
+        plateField.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                OkActionPerformed(evt);
+                plateFieldActionPerformed(evt);
             }
         });
 
-        vehiclePanel1.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)), "Dimension"));
+        plateLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+        plateLabel.setForeground(new java.awt.Color(204, 0, 0));
+        plateLabel.setText("Plate Number");
 
+        modelField.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                modelFieldActionPerformed(evt);
+            }
+        });
+
+        modelLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+        modelLabel.setForeground(new java.awt.Color(204, 0, 0));
+        modelLabel.setText("Model ");
+
+        javax.swing.GroupLayout vehiclePanelLayout = new javax.swing.GroupLayout(vehiclePanel);
+        vehiclePanel.setLayout(vehiclePanelLayout);
+        vehiclePanelLayout.setHorizontalGroup(
+            vehiclePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(vehiclePanelLayout.createSequentialGroup()
+                .addGap(6, 6, 6)
+                .addGroup(vehiclePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, vehiclePanelLayout.createSequentialGroup()
+                        .addComponent(plateLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 89, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
+                    .addGroup(vehiclePanelLayout.createSequentialGroup()
+                        .addComponent(modelLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 50, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(24, 24, 24)))
+                .addGroup(vehiclePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addComponent(modelField, javax.swing.GroupLayout.DEFAULT_SIZE, 107, Short.MAX_VALUE)
+                    .addComponent(plateField))
+                .addGap(0, 0, Short.MAX_VALUE))
+        );
+        vehiclePanelLayout.setVerticalGroup(
+            vehiclePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(vehiclePanelLayout.createSequentialGroup()
+                .addGap(20, 20, 20)
+                .addGroup(vehiclePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(plateField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(plateLabel))
+                .addGap(18, 18, 18)
+                .addGroup(vehiclePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(modelLabel)
+                    .addComponent(modelField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(20, 20, 20))
+        );
+
+        vehiclePanel1.setBackground(new java.awt.Color(255, 255, 255));
+        vehiclePanel1.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 153, 255), 2), "Dimension", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Tahoma", 1, 14), new java.awt.Color(0, 153, 255))); // NOI18N
+
+        lengthLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         lengthLabel.setForeground(new java.awt.Color(204, 0, 0));
         lengthLabel.setText("Length (mt)");
 
@@ -270,6 +283,7 @@ public class Vehicle extends javax.swing.JFrame {
             }
         });
 
+        heigthLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         heigthLabel.setForeground(new java.awt.Color(204, 0, 0));
         heigthLabel.setText("Height (mt)");
 
@@ -278,22 +292,20 @@ public class Vehicle extends javax.swing.JFrame {
         vehiclePanel1Layout.setHorizontalGroup(
             vehiclePanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(vehiclePanel1Layout.createSequentialGroup()
-                .addGap(0, 0, 0)
+                .addGap(0, 20, Short.MAX_VALUE)
                 .addGroup(vehiclePanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(vehiclePanel1Layout.createSequentialGroup()
-                        .addComponent(lengthLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 89, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(lengthField, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addGroup(vehiclePanel1Layout.createSequentialGroup()
-                        .addComponent(heigthLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 89, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(heightField, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addGap(0, 30, Short.MAX_VALUE))
+                    .addComponent(lengthLabel, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 75, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(heigthLabel, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 75, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(18, 18, 18)
+                .addGroup(vehiclePanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(lengthField, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(heightField, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(35, 35, 35))
         );
         vehiclePanel1Layout.setVerticalGroup(
             vehiclePanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(vehiclePanel1Layout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
+                .addContainerGap()
                 .addGroup(vehiclePanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(lengthLabel)
                     .addComponent(lengthField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
@@ -301,37 +313,53 @@ public class Vehicle extends javax.swing.JFrame {
                 .addGroup(vehiclePanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(heigthLabel)
                     .addComponent(heightField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(0, 0, 0))
+                .addContainerGap(25, Short.MAX_VALUE))
         );
 
-        vehiclePanel2.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)), "Cargo"));
-
-        capacityLabel.setForeground(new java.awt.Color(204, 0, 0));
-        capacityLabel.setText("Capacity (tons)");
-
-        capacityField.addActionListener(new java.awt.event.ActionListener() {
+        confirm.setFont(new java.awt.Font("Tahoma", 1, 12)); // NOI18N
+        confirm.setText("Confirm");
+        confirm.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                capacityFieldActionPerformed(evt);
+                confirmActionPerformed(evt);
             }
         });
 
-        javax.swing.GroupLayout vehiclePanel2Layout = new javax.swing.GroupLayout(vehiclePanel2);
-        vehiclePanel2.setLayout(vehiclePanel2Layout);
-        vehiclePanel2Layout.setHorizontalGroup(
-            vehiclePanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(vehiclePanel2Layout.createSequentialGroup()
-                .addComponent(capacityLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 89, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addComponent(capacityField, javax.swing.GroupLayout.PREFERRED_SIZE, 71, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
+        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
+        jPanel2.setLayout(jPanel2Layout);
+        jPanel2Layout.setHorizontalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGap(74, 74, 74)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(oldPlateNumberFrame, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(vehiclePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(vehiclePanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addGap(122, 122, 122)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(vehiclePanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(confirm, javax.swing.GroupLayout.PREFERRED_SIZE, 91, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addContainerGap(139, Short.MAX_VALUE))
         );
-        vehiclePanel2Layout.setVerticalGroup(
-            vehiclePanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(vehiclePanel2Layout.createSequentialGroup()
-                .addGroup(vehiclePanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(capacityLabel)
-                    .addComponent(capacityField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(0, 0, Short.MAX_VALUE))
+        jPanel2Layout.setVerticalGroup(
+            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGap(21, 21, 21)
+                .addComponent(oldPlateNumberFrame, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(67, 67, 67)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(vehiclePanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(vehiclePanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGap(27, 27, 27)
+                        .addComponent(vehiclePanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addContainerGap(82, Short.MAX_VALUE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(confirm, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(55, 55, 55))))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -339,106 +367,69 @@ public class Vehicle extends javax.swing.JFrame {
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(41, 41, 41)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                .addComponent(vehiclePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(jPanel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                            .addComponent(vehiclePanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(44, 44, 44)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addComponent(vehiclePanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(Ok, javax.swing.GroupLayout.PREFERRED_SIZE, 91, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                .addContainerGap(52, Short.MAX_VALUE))
+                .addComponent(jPanel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+            .addGroup(layout.createSequentialGroup()
+                .addGap(1, 1, 1)
+                .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, 77, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(vehiclePanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(vehiclePanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, 18)
-                        .addComponent(vehiclePanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 40, Short.MAX_VALUE)
-                .addComponent(Ok, javax.swing.GroupLayout.PREFERRED_SIZE, 37, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(39, 39, 39))
+                .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(20, Short.MAX_VALUE))
         );
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void OkActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_OkActionPerformed
-        
+    private void confirmActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_confirmActionPerformed
+   
         try{
-            v=VehicleEntity.getVehicleEntity();
-            v.setPlateNumber(plateField.getText());
-            v.setModel(modelField.getText());
-            v.setHeight(Double.valueOf(heightField.getText()));
-            v.setLength(Double.valueOf(lengthField.getText()));
-            
-            if(press.equals("insert")){
-                insertVehicle(v);
-                plateField.setText(null);
-                modelField.setText(null);
-                heightField.setText(null);
-                lengthField.setText(null);     
-            }
-            else{//press="modify"
-                modifyVehicle(v , oldPlateField.getText());
-                Menus menu=new Menus();
-                menu.setVisible(true);
-                this.dispose();    
-            }
+            logctrl.operation(this, press);
         }
-       catch(NumberFormatException e){
-           JOptionPane.showMessageDialog(null, "Error: fill all the mandatory fields");
-       }
-    }//GEN-LAST:event_OkActionPerformed
-
-    private void oldPlateFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_oldPlateFieldActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_oldPlateFieldActionPerformed
+        catch(NumberFormatException e){
+            JOptionPane.showMessageDialog(null, "Error: fill all the mandatory fields");
+        }
+    }//GEN-LAST:event_confirmActionPerformed
 
     private void HomeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_HomeActionPerformed
-        Menus menu = new Menus();
-        menu.setVisible(true);
+        logctrl.openFrame("menu", "");        
         this.dispose();
     }//GEN-LAST:event_HomeActionPerformed
 
     private void logOutActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logOutActionPerformed
-        Login log = new Login();
-        log.setVisible(true);
+        logctrl.logOut();
         this.dispose();
     }//GEN-LAST:event_logOutActionPerformed
 
     private void heightFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_heightFieldActionPerformed
-        // TODO add your handling code here:
+
     }//GEN-LAST:event_heightFieldActionPerformed
 
     private void lengthFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_lengthFieldActionPerformed
-        // TODO add your handling code here:
+
     }//GEN-LAST:event_lengthFieldActionPerformed
 
     private void modelFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_modelFieldActionPerformed
-        // TODO add your handling code here:
+ 
     }//GEN-LAST:event_modelFieldActionPerformed
 
     private void plateFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_plateFieldActionPerformed
-        // TODO add your handling code here:
+
     }//GEN-LAST:event_plateFieldActionPerformed
 
     private void capacityFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_capacityFieldActionPerformed
-        // TODO add your handling code here:
+
     }//GEN-LAST:event_capacityFieldActionPerformed
+
+    private void oldPlateFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_oldPlateFieldActionPerformed
+
+    }//GEN-LAST:event_oldPlateFieldActionPerformed
 
     /**
      * @param args the command line arguments
@@ -471,22 +462,24 @@ public class Vehicle extends javax.swing.JFrame {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton Home;
-    private javax.swing.JButton Ok;
     protected javax.swing.JTextField capacityField;
     private javax.swing.JLabel capacityLabel;
+    private javax.swing.JButton confirm;
     protected javax.swing.JTextField heightField;
     private javax.swing.JLabel heigthLabel;
-    private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
     protected javax.swing.JTextField lengthField;
     private javax.swing.JLabel lengthLabel;
     private javax.swing.JButton logOut;
     protected javax.swing.JTextField modelField;
     private javax.swing.JLabel modelLabel;
-    protected static javax.swing.JTextField oldPlateField;
+    protected javax.swing.JTextField oldPlateField;
     public static javax.swing.JLabel oldPlateLabel;
+    private javax.swing.JPanel oldPlateNumberFrame;
     protected javax.swing.JTextField plateField;
     private javax.swing.JLabel plateLabel;
+    private javax.swing.JLabel titleLabel;
     private javax.swing.JPanel vehiclePanel;
     private javax.swing.JPanel vehiclePanel1;
     private javax.swing.JPanel vehiclePanel2;

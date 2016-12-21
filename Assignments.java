@@ -2,19 +2,14 @@ package ingsftw;
 
 
 import com.google.maps.model.LatLng;
-import static ingsftw.Maps.encode;
-import static ingsftw.Menus.stato;  ///=> si traduce in dipendenza
-import static ingsftw.Menus.press;
-import java.awt.Graphics2D;
 import java.awt.Toolkit;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.logging.Level;
@@ -23,45 +18,89 @@ import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JOptionPane;
 
+
+
 public class Assignments extends javax.swing.JFrame {
-    private ClientEntity c;
-    private ShipmentEntity s;
-    private VehicleEntity v;
-    private ArrayList<ArrayList<LatLng>> parts;
+    private String currAdd;
+    private LocalDateTime dt;
+    private LocalDateTime at;
+    private final String data;
+    private int k;
     
-    private static String data="dd/M/y  H:m:s";
-    private static int id;
-    protected Statement stmt;
-    private static ResultSet rs;
+    private ArrayList<ArrayList<LatLng>> parts;     /** Array that contains the journey's path. */
+    private ArrayList<ArrayList<String>> allPathList;
+    private String press;
+    private final long delay;
     
-    private int k = 0;
-    private int tot = 1;
-    private BufferedImage img;
-    private int lastx, lasty;
-    private int posx, posy;
+    private static TableView tableview;
+    private static Log15Control logctrl;  
+    
+    
     
     public Assignments(){
+        this.delay = 30;
+        this.k = 0;
+        this.data = "dd/M/y  H:m:s";
+        logctrl=new Log15Control();
+        tableview=new TableView();
+        
+        currAdd="";
+        press="insert";
+        
+        parts = new ArrayList<>();
+        allPathList=new ArrayList<>();        
+        
         initComponents();
+        setVisibleButton(press);
         setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("truck1.jpg")));  
+        setTitle("Log'15_SoftEngUniNa");
+    
+    }
+    
+    public Assignments(String add){
+        this.delay = 30;
+        this.k = 0;
+        this.data = "dd/M/y  H:m:s";
+        initComponents();
         
-        c=ClientEntity.getClientEntity();
-        s=ShipmentEntity.getShipmentEntity();
-        parts = new ArrayList<ArrayList<LatLng>>();
+        currAdd=add;
+        press="modify";
+        setVisibleButton(press);
+        setIconImage(Toolkit.getDefaultToolkit().getImage(getClass().getResource("truck1.jpg")));  
+        setTitle("Log'15_SoftEngUniNa");
         
+        logctrl=new Log15Control();
+        tableview=new TableView();
+        parts = new ArrayList<>();
+        allPathList=new ArrayList<>();        
+    }
+    
+    
+    public LocalDateTime getDT(){
+        return(dt);
+    }
+    
+    public LocalDateTime getAT(){
+        return(at);
+    }
+    
+    /**
+     * @param p
+     */
+    private void setVisibleButton(String p){
         backButton.setVisible(false);
         forwardButton.setVisible(false);
         slideLabel.setVisible(false);
-        setVisibleButton(press);
-    }
-    
-    public void setVisibleButton(String p){
+        
         if(p.equals("insert"))
-        {
-            LocalDateTime dt=LocalDateTime.now();
+        {          
+            /**
+             * Each shipment will have 6:00am of the next day as departure time.
+             */
+            dt=LocalDateTime.of(LocalDate.now().plusDays(1), LocalTime.of(6,0));    
             departureTimeField.setText(dt.format(DateTimeFormatter.ofPattern(data)));
-            s.setDepartureTime(dt);
-            //System.out.println(dt);
             
+            mapsLabel1.setVisible(false);
             mapsLabel.setVisible(false);
             defineShipmentButton.setVisible(true);
             ArrivalTimeField.setVisible(false);
@@ -72,14 +111,15 @@ public class Assignments extends javax.swing.JFrame {
             vehicleField.setVisible(false);
             vehicleLabel.setVisible(false);
             vehicleModifyButton.setVisible(false);
-            durationField.setVisible(false);
-            durationLabel.setVisible(false);
             confirmButton.setVisible(false);
             shipPanel.setVisible(false);
         }
-        else
+        else    //modify or defineShipment
         {
+            waypointTable.setVisible(true);
+            registeredClientButton.setVisible(false);
             mapsLabel.setVisible(true);
+            mapsLabel1.setVisible(true);
             defineShipmentButton.setVisible(false);
             ArrivalTimeField.setVisible(true);
             ArrivalTimeLabel.setVisible(true);
@@ -89,14 +129,13 @@ public class Assignments extends javax.swing.JFrame {
             vehicleField.setVisible(true);
             vehicleLabel.setVisible(true);
             vehicleModifyButton.setVisible(true);
-            durationField.setVisible(true);
-            durationLabel.setVisible(true);
             confirmButton.setVisible(true);
             shipPanel.setVisible(true);
         }
     } 
+    
     /**
-     *  RIEMPIE I FIELD RELATIVI AL CLIENTE.
+     *  This method is used to fill the Client information's fields
      * @param c
      **/
     public static void fillForm(ClientEntity c){
@@ -108,182 +147,132 @@ public class Assignments extends javax.swing.JFrame {
         cityField.setText(c.getCity());
         capField.setText(c.getCap());
    }
+    
     /**
-     *  RIEMPIE I FIELD RELATIVI AD UNO SHIPMENT.
+     *  This method is used to fill the shipment information's fields
      * @param s
      */
-    public static void fillForm(ShipmentEntity s){            
+    public void fillForm(ShipmentEntity s){            
         departureTimeField.setText(s.getDepartureTime().format(DateTimeFormatter.ofPattern(data)));    
         ArrivalTimeField.setText(s.getArrivalTime().format(DateTimeFormatter.ofPattern(data)));        
         driverField.setText(s.getIdDriver());
         vehicleField.setText(s.getIdVehicle());
         weightField.setText(Double.toString(s.getWeight()));
         volField.setText(Double.toString(s.getVolume()));
-    }
-    /**
-     * EFFETTUA UNA QUERY AL DB PER INSERIRE UNO SHIPMENT.
-     * @param s
-     **/
-    public void insertShipment(ShipmentEntity s){
-        try{
-            stmt = DatabaseConfig.defaultConnection.createStatement();
-           
-            String sql="INSERT INTO shipment VALUES (null, '";
-                sql += s.getIdClient() + "', '";
-                sql += s.getIdDriver() + "', '";
-                sql += s.getIdVehicle() +"', ";
-                sql += s.getWeight()+", ";
-                sql += s.getVolume()+", ";                       
-                sql +="'"+s.getDepartureTime()+"', ";
-                sql +="'"+s.getArrivalTime()+"') ";
-                //sql += "(select sysdate from dual), ";
-                //sql += " null)";
-                
-            stmt.executeUpdate(sql);
-            JOptionPane.showMessageDialog(null, "Operation Successful");
-        } 
-        catch (SQLException ex) {
-            Logger.getLogger(Assignments.class.getName()).log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(null, "Errore: " + ex);
-        } 
-    }   
-    /**
-     * EFFETTUA UNA QUERY AL DB PER MODIFICARE UNO SHIPMENT.
-     * @param s
-     * @param idship
-     */    
-    public void modifyShipment(ShipmentEntity s, int idship){
-        try{
-            stmt = DatabaseConfig.defaultConnection.createStatement();
-       
-            String  sql ="UPDATE shipment SET ";
-                    sql+="idclient = '"+s.getIdClient();
-                    sql+="', iddriver = '"+s.getIdDriver(); 
-                    sql+="' , idvehicle  ='" +s.getIdVehicle();
-                   // sql+=", currdate ="+s.getDate();      //PENSO CHE LA DATA NON SI DEBBA MODIFICARE.
-                    sql+="', weight ="+s.getWeight();
-                    sql+=", volume ="+s.getVolume();
-                    sql+=" WHERE idshipment ='"+idship+"'";
-                    
-            stmt.executeUpdate(sql);
-            JOptionPane.showMessageDialog(null, "Operation Successful");
-        } 
-        catch(SQLException ex){
-            Logger.getLogger(Assignments.class.getName()).log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(null, "Errore: " + ex);
-        } 
+        
+        dt=s.getDepartureTime();        
     }
     
-    //per testing, MODIFICARE LA QUERY aggiungendo la data
-    public void assignDriver(){
-        s=ShipmentEntity.getShipmentEntity();
-        
-        try{
-            stmt = DatabaseConfig.defaultConnection.createStatement();
-           
-            String sql="SELECT CF FROM DRIVER WHERE cf not in (select iddriver from shipment)";
-        
-            rs=stmt.executeQuery(sql);
-            if(rs.next()== true){
-                s.setIdDriver(rs.getString(1));
-            }
-        } 
-        catch (SQLException ex) {
-            Logger.getLogger(Assignments.class.getName()).log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(null, "Errore: " + ex);
-        }
-    }
-    //per testing, MODIFICARE LA QUERY aggiungendo la data.
-    public void assignVehicle(){
-        s=ShipmentEntity.getShipmentEntity();
-        
-        try{
-            stmt = DatabaseConfig.defaultConnection.createStatement();
-           
-            String sql="select plate_number from vehicle where plate_number not in (select idvehicle from shipment)";
-        
-            rs=stmt.executeQuery(sql);
-            if(rs.next()== true){
-                s.setIdVehicle(rs.getString(1));
-            }
-        } 
-        catch (SQLException ex) {
-            Logger.getLogger(Assignments.class.getName()).log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(null, "Errore: " + ex);
-        } 
-    }
+    
     /**
-    *   Richiama/Crea l'istanza di shipment e setta gli attributi con i dati presi da table.
-     * @param table
-    **/
-    public void setShipmentFromTable(javax.swing.JTable table){
-            s=ShipmentEntity.getShipmentEntity();
-            
-            id=Integer.valueOf(table.getValueAt(table.getSelectedRow(), 0).toString());
-            s.setIdClient(table.getValueAt(table.getSelectedRow(), 1).toString());
-            s.setIdDriver(table.getValueAt(table.getSelectedRow(), 2).toString());
-            s.setIdVehicle(table.getValueAt(table.getSelectedRow(), 3).toString());
-            s.setVolume(Double.valueOf(table.getValueAt(table.getSelectedRow(), 4).toString()));
-            s.setWeight(Double.valueOf(table.getValueAt(table.getSelectedRow(), 5).toString()));
-            try{
-                s.setDepartureTime(LocalDateTime.parse(table.getValueAt(table.getSelectedRow(), 6).toString()));
-                s.setArrivalTime(LocalDateTime.parse(table.getValueAt(table.getSelectedRow(), 7).toString()));
-            }
-            catch(IllegalArgumentException e){}
-            fillForm(s);
-    }
-    
-    public void setClientFromTable(){
-            c=ClientEntity.getClientEntity();
-            s=ShipmentEntity.getShipmentEntity();
-            try{
-                stmt=DatabaseConfig.defaultConnection.createStatement();
-            
-                String sql="select * from client where cf='"+s.getIdClient()+"'" ;
-                rs=stmt.executeQuery(sql);
-                if(rs.next()== true){
-                    c.setCf(rs.getString(1));
-                    c.setName(rs.getString(2));
-                    c.setSurname(rs.getString(3));
-                    c.setAddress(rs.getString(4));
-                    c.setCap(rs.getString(5));
-                    c.setTelephone(rs.getString(6));
-                    c.setCity(rs.getString(7));
-                }
-            }
-            catch(SQLException e){
-                JOptionPane.showMessageDialog(null,"Errore: "+ e);
-            }
-            fillForm(c);
-    }
-    
+     * This method is used to show the map in mapLabel.
+     * @param url
+     * @return 
+     * @throws java.io.IOException
+     */
     public BufferedImage ImageTool(URL url) throws IOException {
-        /*//FUNZIONA!
-        BufferedImage image = ImageIO.read(url);
-        JLabel label = new JLabel(new ImageIcon(image));
-        JFrame f = new JFrame();
-        f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        f.getContentPane().add(label);
-        f.pack();
-        f.setLocation(200,200);
-        f.setVisible(true);
-        */
         BufferedImage image = ImageIO.read(url);
         mapsLabel.setIcon(new ImageIcon(image));
          
         return image;
     }
     
+    /**
+     * This method shows in mapLavel the map with the rest of the path.
+     */
+    private void changeVisiblePath(){    //Called in backButton and forwardButton
+        URL url;
+        
+        try {
+            Maps maps=new Maps();
+            if(k!=parts.size()-1){
+                if(k==0)
+                    url = new URL(maps.buildUrl(parts.get(k),Maps.source));
+                else
+                    url = new URL(maps.buildUrl(parts.get(k)));
+            }
+            else{
+                //Showing in the map the marker that symbolises the end of the journey.
+                url = new URL(maps.buildUrl(parts.get(k),currAdd));
+            }
+            BufferedImage img = ImageTool(url);
+        } 
+        catch (MalformedURLException ex) {
+            Logger.getLogger(Assignments.class.getName()).log(Level.SEVERE, null, ex);
+        } 
+        catch (IOException ex) {
+            Logger.getLogger(Assignments.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
     
     
+    /** This method is used to request to Google Maps the path containing the surce,
+     *  the waypoints and the destination. It gives Google Maps the source, the destination and the waypoints
+     *  and gets back a static map containing the journey's path.
+     * 
+     * @param WP
+     * @param address
+     */
+    public void showMapInLabel(ArrayList WP, String address){ 
+        try{
+            Maps maps=new Maps();
+            StringBuilder response=maps.GetRequest(Maps.source,address,WP);    
+         
+            /** Sets the arrival time as departure time plus the duration of the journey also added to a certain delay time **/
+            at=dt.plusMinutes(maps.getArrivalTime(response)).plusMinutes(delay);   
+            ArrivalTimeField.setText(at.format(DateTimeFormatter.ofPattern(data)));
+                 
+            
+            /** Divides the journey in substrings so that a http request is possible. */
+            parts = maps.getPartsPart(maps.getPath(response));      
+            
+            slideLabel.setText((k+1)+" of "+parts.size());
+            backButton.setVisible(false);
+            slideLabel.setVisible(true);
+            
+            if(parts.size() > k+1){
+                forwardButton.setVisible(true);
+            }
+            URL url;
+            if(parts.size()>1){
+                url=new URL(maps.buildUrl(parts.get(0),Maps.source));
+            }
+            else{
+                url=new URL(maps.buildUrl(parts.get(0),Maps.source,address));
+            }
+            BufferedImage img = ImageTool(url);   
+        }
+        catch (Exception ex) {
+            Logger.getLogger(Assignments.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
     
+ 
+    public void createMap(String currAdd){
+            //lista degli indirizzi dei clienti le cui spedizioni possono trasportare il pacco della nuova spedizione
+            ArrayList<String> l=logctrl.findNotBusyShip(dt, Double.valueOf(weightField.getText()));  
+            Maps maps=new Maps();
+            //cerco tutti i percorsi minimi tra "HOME" e "CURRADDRESS" considerando i possibili waypoints "l".
+            allPathList=maps.findWaypoint(currAdd, l); 
+            //visualizzo tutti i percorsi minimi nella tabella.
+            tableview.fillWaypointTable(allPathList, waypointTable);
+            //mostro il percorso più veloce nella mappa.
+            showMapInLabel(allPathList.get(0), currAdd);            
+    }
     
-    
+        
     @SuppressWarnings("unchecked")
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
-        Addressee = new javax.swing.JPanel();
+        DataPanel = new javax.swing.JPanel();
+        DepartureTimeLabel = new javax.swing.JLabel();
+        departureTimeField = new javax.swing.JFormattedTextField();
+        ArrivalTimeLabel = new javax.swing.JLabel();
+        ArrivalTimeField = new javax.swing.JTextField();
+        confirmButton = new javax.swing.JButton();
+        jPanel2 = new javax.swing.JPanel();
+        AddresseePanel = new javax.swing.JPanel();
         nameLabel = new javax.swing.JLabel();
         surnameLabel = new javax.swing.JLabel();
         addressLabel = new javax.swing.JLabel();
@@ -298,21 +287,12 @@ public class Assignments extends javax.swing.JFrame {
         capField = new javax.swing.JTextField();
         telephoneLabel = new javax.swing.JLabel();
         telField = new javax.swing.JTextField();
-        defineShipmentButton = new javax.swing.JToggleButton();
-        jPanel1 = new javax.swing.JPanel();
-        DepartureTimeLabel = new javax.swing.JLabel();
-        departureTimeField = new javax.swing.JFormattedTextField();
-        ArrivalTimeLabel = new javax.swing.JLabel();
-        ArrivalTimeField = new javax.swing.JTextField();
-        packagePanel = new javax.swing.JPanel();
+        registeredClientButton = new javax.swing.JButton();
+        PackagePanel = new javax.swing.JPanel();
         weightLabel = new javax.swing.JLabel();
         volLabel = new javax.swing.JLabel();
         weightField = new javax.swing.JTextField();
         volField = new javax.swing.JTextField();
-        plusButton = new javax.swing.JButton();
-        registeredClientButton = new javax.swing.JButton();
-        jLabel3 = new javax.swing.JLabel();
-        confirmButton = new javax.swing.JButton();
         shipPanel = new javax.swing.JPanel();
         driverField = new javax.swing.JTextField();
         driverLabel = new java.awt.Label();
@@ -320,31 +300,99 @@ public class Assignments extends javax.swing.JFrame {
         vehicleLabel = new java.awt.Label();
         vehicleField = new javax.swing.JTextField();
         vehicleModifyButton = new javax.swing.JButton();
-        jPanel2 = new javax.swing.JPanel();
-        logOut = new javax.swing.JButton();
-        Home = new javax.swing.JButton();
-        durationLabel = new javax.swing.JLabel();
-        durationField = new javax.swing.JTextField();
+        MandatoryFieldsLabel = new javax.swing.JLabel();
+        defineShipmentButton = new javax.swing.JToggleButton();
+        mapsLabel1 = new javax.swing.JPanel();
         mapsLabel = new javax.swing.JLabel();
-        backButton = new javax.swing.JButton();
         forwardButton = new javax.swing.JButton();
         slideLabel = new javax.swing.JLabel();
+        backButton = new javax.swing.JButton();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        waypointTable = new javax.swing.JTable();
+        jPanel1 = new javax.swing.JPanel();
+        Home = new javax.swing.JButton();
+        logOut = new javax.swing.JButton();
+        titleLabel = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setBackground(new java.awt.Color(255, 255, 255));
+        setResizable(false);
 
-        Addressee.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)), "Addressee"));
+        DataPanel.setBackground(new java.awt.Color(255, 255, 255));
 
-        nameLabel.setForeground(new java.awt.Color(153, 0, 0));
+        DepartureTimeLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+        DepartureTimeLabel.setText("Departure Time");
+
+        departureTimeField.setEditable(false);
+        departureTimeField.setFormatterFactory(new javax.swing.text.DefaultFormatterFactory(new javax.swing.text.DateFormatter()));
+        departureTimeField.setEnabled(false);
+        departureTimeField.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                departureTimeFieldActionPerformed(evt);
+            }
+        });
+
+        ArrivalTimeLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
+        ArrivalTimeLabel.setText("Arrival Time");
+
+        ArrivalTimeField.setEditable(false);
+        ArrivalTimeField.setEnabled(false);
+        ArrivalTimeField.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                ArrivalTimeFieldActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout DataPanelLayout = new javax.swing.GroupLayout(DataPanel);
+        DataPanel.setLayout(DataPanelLayout);
+        DataPanelLayout.setHorizontalGroup(
+            DataPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(DataPanelLayout.createSequentialGroup()
+                .addGap(38, 38, 38)
+                .addComponent(DepartureTimeLabel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(departureTimeField, javax.swing.GroupLayout.PREFERRED_SIZE, 133, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(44, 44, 44)
+                .addComponent(ArrivalTimeLabel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(ArrivalTimeField, javax.swing.GroupLayout.PREFERRED_SIZE, 133, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+        DataPanelLayout.setVerticalGroup(
+            DataPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+            .addGroup(DataPanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(DataPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(DepartureTimeLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(departureTimeField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(ArrivalTimeLabel)
+                    .addComponent(ArrivalTimeField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
+
+        confirmButton.setFont(new java.awt.Font("Tahoma", 1, 11)); // NOI18N
+        confirmButton.setText("Confirm");
+        confirmButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                confirmButtonActionPerformed(evt);
+            }
+        });
+
+        jPanel2.setBackground(new java.awt.Color(255, 255, 255));
+
+        AddresseePanel.setBackground(new java.awt.Color(255, 255, 255));
+        AddresseePanel.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 153, 255), 2), "Addressee", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Tahoma", 1, 14), new java.awt.Color(0, 153, 255))); // NOI18N
+
+        nameLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         nameLabel.setText("Name");
 
-        surnameLabel.setForeground(new java.awt.Color(153, 0, 0));
+        surnameLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         surnameLabel.setText("Surname");
 
-        addressLabel.setForeground(new java.awt.Color(153, 0, 0));
+        addressLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         addressLabel.setText("Address");
 
-        capLabel.setForeground(new java.awt.Color(153, 0, 0));
+        capLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         capLabel.setText("CAP");
 
         nameField.setEditable(false);
@@ -383,7 +431,7 @@ public class Assignments extends javax.swing.JFrame {
             }
         });
 
-        cfLabel.setForeground(new java.awt.Color(153, 0, 0));
+        cfLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         cfLabel.setText("CF");
 
         cfField.setEditable(false);
@@ -395,7 +443,7 @@ public class Assignments extends javax.swing.JFrame {
             }
         });
 
-        cityLabel.setForeground(new java.awt.Color(153, 0, 0));
+        cityLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         cityLabel.setText("City");
 
         capField.setEditable(false);
@@ -407,7 +455,7 @@ public class Assignments extends javax.swing.JFrame {
             }
         });
 
-        telephoneLabel.setForeground(new java.awt.Color(153, 0, 0));
+        telephoneLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         telephoneLabel.setText("Telephone");
 
         telField.setEditable(false);
@@ -419,126 +467,83 @@ public class Assignments extends javax.swing.JFrame {
             }
         });
 
-        javax.swing.GroupLayout AddresseeLayout = new javax.swing.GroupLayout(Addressee);
-        Addressee.setLayout(AddresseeLayout);
-        AddresseeLayout.setHorizontalGroup(
-            AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(AddresseeLayout.createSequentialGroup()
-                .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, AddresseeLayout.createSequentialGroup()
-                        .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(addressLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 58, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addComponent(nameLabel)
-                            .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
-                                .addComponent(cfLabel, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(surnameLabel, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(cfField)
-                            .addComponent(nameField)
-                            .addComponent(surnameField)
-                            .addComponent(addressField)))
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, AddresseeLayout.createSequentialGroup()
-                        .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addGroup(AddresseeLayout.createSequentialGroup()
-                                .addComponent(cityLabel)
-                                .addGap(47, 47, 47))
-                            .addComponent(capLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                        .addGap(4, 4, 4)
-                        .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                            .addComponent(capField, javax.swing.GroupLayout.DEFAULT_SIZE, 126, Short.MAX_VALUE)
-                            .addComponent(cityField)))
-                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, AddresseeLayout.createSequentialGroup()
-                        .addComponent(telephoneLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(telField)))
-                .addGap(0, 0, 0))
-        );
-        AddresseeLayout.setVerticalGroup(
-            AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(AddresseeLayout.createSequentialGroup()
-                .addGap(0, 0, 0)
-                .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(cfLabel)
-                    .addComponent(cfField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(nameLabel)
-                    .addComponent(nameField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+        javax.swing.GroupLayout AddresseePanelLayout = new javax.swing.GroupLayout(AddresseePanel);
+        AddresseePanel.setLayout(AddresseePanelLayout);
+        AddresseePanelLayout.setHorizontalGroup(
+            AddresseePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(AddresseePanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(AddresseePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addComponent(surnameLabel)
-                    .addComponent(surnameField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(addressLabel)
+                    .addComponent(cityLabel)
+                    .addComponent(capLabel)
+                    .addComponent(telephoneLabel)
+                    .addComponent(cfLabel)
+                    .addComponent(nameLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                .addGroup(AddresseePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(AddresseePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                        .addComponent(nameField, javax.swing.GroupLayout.PREFERRED_SIZE, 171, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(cfField, javax.swing.GroupLayout.PREFERRED_SIZE, 171, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(surnameField, javax.swing.GroupLayout.PREFERRED_SIZE, 171, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(addressField, javax.swing.GroupLayout.PREFERRED_SIZE, 171, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(capField, javax.swing.GroupLayout.PREFERRED_SIZE, 171, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(cityField, javax.swing.GroupLayout.PREFERRED_SIZE, 171, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(telField, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 172, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(33, Short.MAX_VALUE))
+        );
+        AddresseePanelLayout.setVerticalGroup(
+            AddresseePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(AddresseePanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(AddresseePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(cfField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(cfLabel))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(AddresseePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(nameField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(nameLabel))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(AddresseePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(surnameField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(surnameLabel))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(AddresseePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(addressLabel)
                     .addComponent(addressField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(capLabel)
-                    .addComponent(capField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGroup(AddresseePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(capField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(capLabel))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                .addGroup(AddresseePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(cityLabel)
                     .addComponent(cityField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(AddresseeLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(telephoneLabel)
-                    .addComponent(telField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(0, 0, 0))
-        );
-
-        defineShipmentButton.setText("Define Shipment");
-        defineShipmentButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                defineShipmentButtonActionPerformed(evt);
-            }
-        });
-
-        DepartureTimeLabel.setText("Departure Time");
-
-        departureTimeField.setEditable(false);
-        departureTimeField.setFormatterFactory(new javax.swing.text.DefaultFormatterFactory(new javax.swing.text.DateFormatter()));
-        departureTimeField.setEnabled(false);
-        departureTimeField.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                departureTimeFieldActionPerformed(evt);
-            }
-        });
-
-        ArrivalTimeLabel.setText("Arrival Time");
-
-        ArrivalTimeField.setEditable(false);
-        ArrivalTimeField.setEnabled(false);
-
-        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
-        jPanel1.setLayout(jPanel1Layout);
-        jPanel1Layout.setHorizontalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel1Layout.createSequentialGroup()
-                .addComponent(DepartureTimeLabel)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(departureTimeField, javax.swing.GroupLayout.PREFERRED_SIZE, 123, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(36, 36, 36)
-                .addComponent(ArrivalTimeLabel)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(ArrivalTimeField, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(AddresseePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(telField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(telephoneLabel))
                 .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
-        jPanel1Layout.setVerticalGroup(
-            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-            .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                .addComponent(DepartureTimeLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 16, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addComponent(departureTimeField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addComponent(ArrivalTimeLabel)
-                .addComponent(ArrivalTimeField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-        );
 
-        packagePanel.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)), "Package"));
+        registeredClientButton.setFont(new java.awt.Font("Tahoma", 1, 11)); // NOI18N
+        registeredClientButton.setForeground(new java.awt.Color(153, 0, 0));
+        registeredClientButton.setText("Registered Client");
+        registeredClientButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                registeredClientButtonActionPerformed(evt);
+            }
+        });
 
+        PackagePanel.setBackground(new java.awt.Color(255, 255, 255));
+        PackagePanel.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 153, 255), 2), "Package", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Tahoma", 1, 14), new java.awt.Color(0, 153, 255))); // NOI18N
+
+        weightLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         weightLabel.setForeground(new java.awt.Color(153, 0, 0));
         weightLabel.setText("Weight (Kg)");
 
+        volLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         volLabel.setForeground(new java.awt.Color(153, 0, 0));
         volLabel.setText("Volume (mt*3)");
 
@@ -554,65 +559,37 @@ public class Assignments extends javax.swing.JFrame {
             }
         });
 
-        plusButton.setFont(new java.awt.Font("Segoe UI Black", 1, 14)); // NOI18N
-        plusButton.setIcon(new javax.swing.ImageIcon(getClass().getResource("/icons/plus.jpg"))); // NOI18N
-        plusButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                plusButtonActionPerformed(evt);
-            }
-        });
-
-        javax.swing.GroupLayout packagePanelLayout = new javax.swing.GroupLayout(packagePanel);
-        packagePanel.setLayout(packagePanelLayout);
-        packagePanelLayout.setHorizontalGroup(
-            packagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, packagePanelLayout.createSequentialGroup()
-                .addGroup(packagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(weightLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 64, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(volLabel))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(packagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addComponent(volField, javax.swing.GroupLayout.DEFAULT_SIZE, 84, Short.MAX_VALUE)
-                    .addComponent(weightField))
+        javax.swing.GroupLayout PackagePanelLayout = new javax.swing.GroupLayout(PackagePanel);
+        PackagePanel.setLayout(PackagePanelLayout);
+        PackagePanelLayout.setHorizontalGroup(
+            PackagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, PackagePanelLayout.createSequentialGroup()
+                .addGap(18, 18, 18)
+                .addGroup(PackagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(volLabel)
+                    .addComponent(weightLabel))
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(plusButton, javax.swing.GroupLayout.PREFERRED_SIZE, 43, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGroup(PackagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(weightField, javax.swing.GroupLayout.PREFERRED_SIZE, 59, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(volField, javax.swing.GroupLayout.PREFERRED_SIZE, 59, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(83, Short.MAX_VALUE))
         );
-        packagePanelLayout.setVerticalGroup(
-            packagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(packagePanelLayout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
-                .addGroup(packagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, packagePanelLayout.createSequentialGroup()
-                        .addGroup(packagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(weightLabel)
-                            .addComponent(weightField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addGroup(packagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(volLabel)
-                            .addComponent(volField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                    .addComponent(plusButton, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, 38, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(0, 0, 0))
+        PackagePanelLayout.setVerticalGroup(
+            PackagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, PackagePanelLayout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(PackagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(weightField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(weightLabel))
+                .addGap(18, 18, 18)
+                .addGroup(PackagePanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(volField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(volLabel))
+                .addContainerGap(20, Short.MAX_VALUE))
         );
 
-        registeredClientButton.setText("Registered Client");
-        registeredClientButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                registeredClientButtonActionPerformed(evt);
-            }
-        });
-
-        jLabel3.setFont(new java.awt.Font("Arial Narrow", 1, 12)); // NOI18N
-        jLabel3.setForeground(new java.awt.Color(204, 0, 0));
-        jLabel3.setText("*Mandatory fields are written in red");
-
-        confirmButton.setText("Confirm");
-        confirmButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                confirmButtonActionPerformed(evt);
-            }
-        });
-
-        shipPanel.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0))));
+        shipPanel.setBackground(new java.awt.Color(255, 255, 255));
+        shipPanel.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 153, 255), 2), "", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Tahoma", 1, 14), new java.awt.Color(0, 153, 255))); // NOI18N
 
         driverField.setEditable(false);
         driverField.setBackground(new java.awt.Color(153, 153, 153));
@@ -625,7 +602,7 @@ public class Assignments extends javax.swing.JFrame {
             }
         });
 
-        driverLabel.setFont(new java.awt.Font("Tahoma", 0, 11)); // NOI18N
+        driverLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         driverLabel.setText("Driver");
 
         driverModifyButton.setText("Modify");
@@ -635,7 +612,7 @@ public class Assignments extends javax.swing.JFrame {
             }
         });
 
-        vehicleLabel.setFont(new java.awt.Font("Tahoma", 0, 11)); // NOI18N
+        vehicleLabel.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
         vehicleLabel.setName("vehicleLabel"); // NOI18N
         vehicleLabel.setText("Vehicle");
 
@@ -654,48 +631,51 @@ public class Assignments extends javax.swing.JFrame {
         shipPanelLayout.setHorizontalGroup(
             shipPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(shipPanelLayout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
+                .addContainerGap()
                 .addGroup(shipPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addGroup(shipPanelLayout.createSequentialGroup()
                         .addComponent(vehicleLabel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(1, 1, 1)
                         .addGroup(shipPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addComponent(vehicleField, javax.swing.GroupLayout.DEFAULT_SIZE, 120, Short.MAX_VALUE)
-                            .addComponent(driverField, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
+                            .addComponent(driverField, javax.swing.GroupLayout.DEFAULT_SIZE, 102, Short.MAX_VALUE)
+                            .addComponent(vehicleField)))
                     .addComponent(driverLabel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGap(18, 18, 18)
                 .addGroup(shipPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(driverModifyButton)
-                    .addComponent(vehicleModifyButton)))
+                    .addComponent(vehicleModifyButton))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         shipPanelLayout.setVerticalGroup(
             shipPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(shipPanelLayout.createSequentialGroup()
-                .addGap(0, 0, Short.MAX_VALUE)
                 .addGroup(shipPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(driverLabel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(shipPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                        .addComponent(driverField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(driverModifyButton)))
-                .addGap(2, 2, 2)
+                    .addGroup(shipPanelLayout.createSequentialGroup()
+                        .addGap(19, 19, 19)
+                        .addGroup(shipPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                            .addComponent(driverField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(driverModifyButton)))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, shipPanelLayout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(driverLabel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(shipPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(vehicleLabel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addGroup(shipPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, shipPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                         .addComponent(vehicleField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(vehicleModifyButton))))
+                        .addComponent(vehicleModifyButton))
+                    .addComponent(vehicleLabel, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addContainerGap(21, Short.MAX_VALUE))
         );
 
-        logOut.setIcon(new javax.swing.ImageIcon(getClass().getResource("/icons/logout.png"))); // NOI18N
-        logOut.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                logOutActionPerformed(evt);
-            }
-        });
+        MandatoryFieldsLabel.setFont(new java.awt.Font("Arial Narrow", 1, 12)); // NOI18N
+        MandatoryFieldsLabel.setForeground(new java.awt.Color(204, 0, 0));
+        MandatoryFieldsLabel.setText("*Mandatory fields are written in red");
 
-        Home.setIcon(new javax.swing.ImageIcon(getClass().getResource("/icons/home.png"))); // NOI18N
-        Home.addActionListener(new java.awt.event.ActionListener() {
+        defineShipmentButton.setFont(new java.awt.Font("Tahoma", 1, 11)); // NOI18N
+        defineShipmentButton.setText("Define Shipment");
+        defineShipmentButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
-                HomeActionPerformed(evt);
+                defineShipmentButtonActionPerformed(evt);
             }
         });
 
@@ -703,40 +683,51 @@ public class Assignments extends javax.swing.JFrame {
         jPanel2.setLayout(jPanel2Layout);
         jPanel2Layout.setHorizontalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
-                .addContainerGap(229, Short.MAX_VALUE)
-                .addComponent(logOut, javax.swing.GroupLayout.PREFERRED_SIZE, 41, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(18, 18, 18)
-                .addComponent(Home, javax.swing.GroupLayout.PREFERRED_SIZE, 42, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addGap(0, 0, 0))
+            .addGroup(jPanel2Layout.createSequentialGroup()
+                .addGap(31, 31, 31)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(MandatoryFieldsLabel)
+                            .addGroup(jPanel2Layout.createSequentialGroup()
+                                .addGap(161, 161, 161)
+                                .addComponent(registeredClientButton)))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(defineShipmentButton)
+                        .addGap(31, 31, 31))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(AddresseePanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(98, 98, 98)
+                        .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                            .addComponent(shipPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                            .addComponent(PackagePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addGap(34, 34, 34))))
         );
         jPanel2Layout.setVerticalGroup(
             jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(jPanel2Layout.createSequentialGroup()
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                .addGap(14, 14, 14)
+                .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addComponent(PackagePanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(33, 33, 33)
+                        .addComponent(shipPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(AddresseePanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(logOut, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(Home, javax.swing.GroupLayout.PREFERRED_SIZE, 39, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel2Layout.createSequentialGroup()
+                        .addComponent(registeredClientButton, javax.swing.GroupLayout.PREFERRED_SIZE, 44, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(MandatoryFieldsLabel)
+                        .addGap(6, 6, 6))
+                    .addGroup(jPanel2Layout.createSequentialGroup()
+                        .addGap(28, 28, 28)
+                        .addComponent(defineShipmentButton, javax.swing.GroupLayout.PREFERRED_SIZE, 44, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))))
         );
 
-        durationLabel.setText("Duration");
-
-        durationField.setEditable(false);
-        durationField.setEnabled(false);
-        durationField.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                durationFieldActionPerformed(evt);
-            }
-        });
-
-        mapsLabel.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 0, 0)));
-
-        backButton.setText("<<");
-        backButton.addActionListener(new java.awt.event.ActionListener() {
-            public void actionPerformed(java.awt.event.ActionEvent evt) {
-                backButtonActionPerformed(evt);
-            }
-        });
+        mapsLabel1.setBackground(new java.awt.Color(255, 255, 255));
+        mapsLabel1.setBorder(javax.swing.BorderFactory.createTitledBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(0, 153, 255), 2), "Path", javax.swing.border.TitledBorder.DEFAULT_JUSTIFICATION, javax.swing.border.TitledBorder.DEFAULT_POSITION, new java.awt.Font("Tahoma", 1, 14), new java.awt.Color(0, 153, 255))); // NOI18N
 
         forwardButton.setText(">>");
         forwardButton.addActionListener(new java.awt.event.ActionListener() {
@@ -747,98 +738,152 @@ public class Assignments extends javax.swing.JFrame {
 
         slideLabel.setText("1/1");
 
+        backButton.setText("<<");
+        backButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                backButtonActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout mapsLabel1Layout = new javax.swing.GroupLayout(mapsLabel1);
+        mapsLabel1.setLayout(mapsLabel1Layout);
+        mapsLabel1Layout.setHorizontalGroup(
+            mapsLabel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, mapsLabel1Layout.createSequentialGroup()
+                .addGroup(mapsLabel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(mapsLabel1Layout.createSequentialGroup()
+                        .addContainerGap()
+                        .addComponent(mapsLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 402, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(mapsLabel1Layout.createSequentialGroup()
+                        .addGap(131, 131, 131)
+                        .addComponent(backButton)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(slideLabel)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(forwardButton)))
+                .addContainerGap())
+        );
+        mapsLabel1Layout.setVerticalGroup(
+            mapsLabel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(mapsLabel1Layout.createSequentialGroup()
+                .addComponent(mapsLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 309, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(mapsLabel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(backButton)
+                    .addComponent(forwardButton)
+                    .addComponent(slideLabel)))
+        );
+
+        jScrollPane1.setBorder(null);
+
+        waypointTable.setAutoCreateRowSorter(true);
+        waypointTable.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {},
+                {},
+                {},
+                {}
+            },
+            new String [] {
+
+            }
+        ));
+        waypointTable.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        waypointTable.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseClicked(java.awt.event.MouseEvent evt) {
+                waypointTableMouseClicked(evt);
+            }
+            public void mousePressed(java.awt.event.MouseEvent evt) {
+                waypointTableMousePressed(evt);
+            }
+        });
+        jScrollPane1.setViewportView(waypointTable);
+
+        jPanel1.setBackground(new java.awt.Color(255, 255, 255));
+
+        Home.setBackground(new java.awt.Color(255, 255, 255));
+        Home.setIcon(new javax.swing.ImageIcon(getClass().getResource("/icons/home.png"))); // NOI18N
+        Home.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
+        Home.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                HomeActionPerformed(evt);
+            }
+        });
+
+        logOut.setBackground(new java.awt.Color(255, 255, 255));
+        logOut.setIcon(new javax.swing.ImageIcon(getClass().getResource("/icons/logout.png"))); // NOI18N
+        logOut.setBorder(javax.swing.BorderFactory.createBevelBorder(javax.swing.border.BevelBorder.RAISED));
+        logOut.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                logOutActionPerformed(evt);
+            }
+        });
+
+        titleLabel.setFont(new java.awt.Font("Tahoma", 1, 24)); // NOI18N
+        titleLabel.setForeground(new java.awt.Color(0, 153, 255));
+        titleLabel.setText("SHIPMENT MANAGEMENT");
+
+        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
+        jPanel1.setLayout(jPanel1Layout);
+        jPanel1Layout.setHorizontalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel1Layout.createSequentialGroup()
+                .addGap(45, 45, 45)
+                .addComponent(titleLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 496, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addComponent(logOut, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(Home, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(20, 20, 20))
+        );
+        jPanel1Layout.setVerticalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(titleLabel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addGroup(jPanel1Layout.createSequentialGroup()
+                        .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(logOut, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(Home, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(0, 0, Short.MAX_VALUE)))
+                .addContainerGap())
+        );
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                .addContainerGap()
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(DataPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addGroup(layout.createSequentialGroup()
-                        .addContainerGap()
-                        .addComponent(jLabel3, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(25, 25, 25)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
-                            .addGroup(layout.createSequentialGroup()
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(shipPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addGap(33, 33, 33)
-                                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addGap(10, 10, 10)
-                                        .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addGap(289, 289, 289)
-                                        .addComponent(durationLabel)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(durationField, javax.swing.GroupLayout.PREFERRED_SIZE, 113, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addGap(262, 262, 262)
-                                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                            .addComponent(defineShipmentButton)
-                                            .addComponent(confirmButton, javax.swing.GroupLayout.PREFERRED_SIZE, 96, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                                .addGap(16, 16, 16))
-                            .addGroup(layout.createSequentialGroup()
-                                .addGap(10, 10, 10)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                    .addComponent(registeredClientButton, javax.swing.GroupLayout.PREFERRED_SIZE, 138, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                    .addComponent(Addressee, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                                .addComponent(packagePanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))))
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(29, 29, 29)
-                        .addComponent(mapsLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 402, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(19, 19, 19))
+                        .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(mapsLabel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
                     .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(backButton)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(slideLabel)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(forwardButton)
-                        .addGap(162, 162, 162))))
+                        .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 1034, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addComponent(confirmButton, javax.swing.GroupLayout.PREFERRED_SIZE, 111, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jPanel1, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+            .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(DataPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(mapsLabel1, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                .addGap(18, 18, 18)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(21, 21, 21)
-                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(18, 18, Short.MAX_VALUE)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(Addressee, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(registeredClientButton, javax.swing.GroupLayout.PREFERRED_SIZE, 32, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(89, 89, 89)
-                                .addComponent(shipPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(37, 37, 37))
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(packagePanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(22, 22, 22)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                                    .addComponent(durationLabel)
-                                    .addComponent(durationField, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addGap(32, 32, 32)
-                                .addComponent(defineShipmentButton, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(37, 37, 37)
-                                .addComponent(confirmButton, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)))
-                        .addComponent(jLabel3))
-                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(backButton)
-                            .addComponent(forwardButton)
-                            .addComponent(slideLabel))
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(mapsLabel, javax.swing.GroupLayout.PREFERRED_SIZE, 309, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(97, 97, 97)))
+                    .addComponent(confirmButton, javax.swing.GroupLayout.PREFERRED_SIZE, 44, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jScrollPane1, javax.swing.GroupLayout.DEFAULT_SIZE, 179, Short.MAX_VALUE))
                 .addContainerGap())
         );
 
@@ -846,132 +891,78 @@ public class Assignments extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void HomeActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_HomeActionPerformed
-        stato="shipment";
-        s=ShipmentEntity.getShipmentEntity();
-        s=ShipmentEntity.getEmptyShipment(); 
-        
-        Menus menu = new Menus();
-        menu.setVisible(true);
-        this.dispose();
+        logctrl.openFrame("menu", "");
+        this.dispose();        
     }//GEN-LAST:event_HomeActionPerformed
 
     private void logOutActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_logOutActionPerformed
-        Login log = new Login();
-        log.setVisible(true);
+        logctrl.logOut();
         this.dispose();
     }//GEN-LAST:event_logOutActionPerformed
 
     private void cityFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cityFieldActionPerformed
-        // TODO add your handling code here:
+    
     }//GEN-LAST:event_cityFieldActionPerformed
 
     private void telFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_telFieldActionPerformed
-        // TODO add your handling code here:
+       
     }//GEN-LAST:event_telFieldActionPerformed
 
     private void addressFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_addressFieldActionPerformed
-        // TODO add your handling code here:
+    
     }//GEN-LAST:event_addressFieldActionPerformed
 
     private void surnameFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_surnameFieldActionPerformed
-        // TODO add your handling code here:
+       
     }//GEN-LAST:event_surnameFieldActionPerformed
 
     private void nameFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_nameFieldActionPerformed
-        // TODO add your handling code here:
+      
     }//GEN-LAST:event_nameFieldActionPerformed
 
     private void defineShipmentButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_defineShipmentButtonActionPerformed
-        setVisibleButton("defineButton");
-                
-        assignDriver();
-        assignVehicle();
-        driverField.setText(s.getIdDriver());
-        vehicleField.setText(s.getIdVehicle());  
         try{
-                                          
-            c=ClientEntity.getClientEntity();
-            String address=c.getAddress()+",+"+c.getCap()+",+"+c.getCity();
-            address=address.replace(" ","+");
-           // System.out.println(st);
+            if(cfField.getText().equals("") || weightField.getText().equals("") || volField.getText().equals(""))
+               throw new NumberFormatException(); 
+             
+            setVisibleButton("confirmShipmentButton");
             
-            Maps maps=new Maps();
-            StringBuilder response=maps.GetRequest(address);            
+            currAdd=addressField.getText()+",+"+capField.getText()+",+"+cityField.getText();
+            currAdd=currAdd.replace(" ","+");
             
-            durationField.setText(maps.getDuration(response));
-            
-        //data di arrivo= data di partenza + tempo di viaggio.
-            LocalDateTime dt=s.getDepartureTime().plusMinutes(maps.getArrivalTime(response)/60);
-            ArrivalTimeField.setText(dt.format(DateTimeFormatter.ofPattern(data)));
-            s.setArrivalTime(dt);     
-            
-            //pa contiene l'url della mappa.
-            //String pa=maps.getPath(response);
-            parts = maps.getPartsPart(maps.getPath(response));
-            slideLabel.setText((k+1)+" di "+parts.size());
-            backButton.setVisible(false);
-            slideLabel.setVisible(true);
-            if(parts.size() > k+1){
-                forwardButton.setVisible(true);
-            }else{
-                forwardButton.setVisible(false);
-            }
-            URL url=new URL(getPato(parts.get(0)));
-            img = ImageTool(url);
+            createMap(currAdd);
+          
+            logctrl.assignNotBusy("vehicle", dt);
+            logctrl.assignNotBusy("driver", dt);            
         }
-        catch (Exception ex) {
-            Logger.getLogger(Assignments.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        catch(NumberFormatException e){
+           JOptionPane.showMessageDialog(null, "Error: fill all the mandatory fields");
+           
+        }        
     }//GEN-LAST:event_defineShipmentButtonActionPerformed
-    private String getPato(ArrayList<LatLng> pati){
-     String path = "http://maps.googleapis.com/maps/api/staticmap?";
-        //path += "&size=512x512";
-        path += "&size=402x309";
-        //path += "&zoom=10";
-        path += "&maptype=roadmap";
-        path += "&key=AIzaSyBYoKm3CXK5_s1SlB4gkIROS93lIti9ksE";
-        path += "&format=jpg";
-        path += "&path=color:0x0000ff|weight:5";
-        path += "|enc:";
-        path += new Maps().encode(pati);
-        return path;
-    }
-            
+                
     private void weightFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_weightFieldActionPerformed
         
     }//GEN-LAST:event_weightFieldActionPerformed
 
-    private void plusButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_plusButtonActionPerformed
-
-    }//GEN-LAST:event_plusButtonActionPerformed
-
     private void registeredClientButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_registeredClientButtonActionPerformed
-        stato="client";
-        List l=new List();
-        //this.setVisible(false);
-        l.setVisible(true);        
+        tableview.openFrame("client");        
     }//GEN-LAST:event_registeredClientButtonActionPerformed
 
     private void cfFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cfFieldActionPerformed
-        // TODO add your handling code here:
+     
     }//GEN-LAST:event_cfFieldActionPerformed
 
     private void driverModifyButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_driverModifyButtonActionPerformed
-        stato="driver";
-        List l=new List();
-        //this.setVisible(false);
-        l.setVisible(true);    
+        tableview.openFrame("driver");
     }//GEN-LAST:event_driverModifyButtonActionPerformed
 
     private void vehicleModifyButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_vehicleModifyButtonActionPerformed
-        stato="vehicle";
-        List l=new List();
-       // this.setVisible(false);
-        l.setVisible(true);    
+        tableview.openFrame("vehicle");
     }//GEN-LAST:event_vehicleModifyButtonActionPerformed
 
     private void driverFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_driverFieldActionPerformed
-        // TODO add your handling code here:
+        
     }//GEN-LAST:event_driverFieldActionPerformed
 
     private void departureTimeFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_departureTimeFieldActionPerformed
@@ -979,24 +970,13 @@ public class Assignments extends javax.swing.JFrame {
     }//GEN-LAST:event_departureTimeFieldActionPerformed
 
     private void volFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_volFieldActionPerformed
-        // TODO add your handling code here:
+       
     }//GEN-LAST:event_volFieldActionPerformed
 
     private void confirmButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_confirmButtonActionPerformed
-        try{
-            s=ShipmentEntity.getShipmentEntity();
-            s.setWeight(Double.valueOf(weightField.getText()));
-            s.setVolume(Double.valueOf(volField.getText()));
-            if(press.equals("insert")){
-                insertShipment(s);
-            }
-            else{//press=modify
-                modifyShipment(s,id);
-            }
-            s= ShipmentEntity.getEmptyShipment();    
-            stato="shipment";
-            Menus menu = new Menus();
-            menu.setVisible(true);
+        try{            
+            logctrl.operation(this, press);
+            logctrl.openFrame("menu", "");
             this.dispose();
         }
         catch(NumberFormatException e){
@@ -1005,50 +985,69 @@ public class Assignments extends javax.swing.JFrame {
     }//GEN-LAST:event_confirmButtonActionPerformed
 
     private void capFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_capFieldActionPerformed
-        // TODO add your handling code here:
+       
     }//GEN-LAST:event_capFieldActionPerformed
-
-    private void durationFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_durationFieldActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_durationFieldActionPerformed
 
     private void backButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_backButtonActionPerformed
         k--;
-        changePath();
-    }//GEN-LAST:event_backButtonActionPerformed
-
-    private void forwardButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_forwardButtonActionPerformed
-        k++;
-        changePath();
-    }//GEN-LAST:event_forwardButtonActionPerformed
-    
-    private void changePath(){
-        URL url;
         if(k!=parts.size()-1){
             forwardButton.setVisible(true);
-        }
-        else{
+        }else{
             forwardButton.setVisible(false);
         }
         if(k!=0){
             backButton.setVisible(true);
-        }
-        else{
+        }else{
             backButton.setVisible(false);
         }
-        
         slideLabel.setText((k+1)+" di "+parts.size());
-        try {
-            url = new URL(getPato(parts.get(k)));
-            img = ImageTool(url);
-        } 
-        catch (MalformedURLException ex) {
-            Logger.getLogger(Assignments.class.getName()).log(Level.SEVERE, null, ex);
-        } 
-        catch (IOException ex) {
-            Logger.getLogger(Assignments.class.getName()).log(Level.SEVERE, null, ex);
+        
+        changeVisiblePath();
+    }//GEN-LAST:event_backButtonActionPerformed
+
+    private void forwardButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_forwardButtonActionPerformed
+        k++;
+        if(k!=parts.size()-1){
+            forwardButton.setVisible(true);
+        }else{
+            forwardButton.setVisible(false);
         }
-    }
+        if(k!=0){
+            backButton.setVisible(true);
+        }else{
+            backButton.setVisible(false);
+        }
+        slideLabel.setText((k+1)+" di "+parts.size());
+        
+        changeVisiblePath();
+    }//GEN-LAST:event_forwardButtonActionPerformed
+
+    private void ArrivalTimeFieldActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ArrivalTimeFieldActionPerformed
+     
+    }//GEN-LAST:event_ArrivalTimeFieldActionPerformed
+
+    private void waypointTableMousePressed(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_waypointTableMousePressed
+
+    }//GEN-LAST:event_waypointTableMousePressed
+
+    private void waypointTableMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_waypointTableMouseClicked
+        k=0;
+        int nRow=waypointTable.getSelectedRow();
+        showMapInLabel(allPathList.get(nRow), currAdd);
+        
+        if(allPathList.get(nRow).isEmpty()){
+            logctrl.assignNotBusy("vehicle", dt);
+            logctrl.assignNotBusy("driver", dt);
+        }
+        else{
+            /**
+             * Looking in the database the driver and vehicle that have been assigned to the requested delivery.
+             */
+            String [] st=allPathList.get(nRow).get(allPathList.get(nRow).size()-1).replace("+"," ").split(", ");
+            logctrl.assignVehicleDriverFromShipment(st, dt);            
+        }
+    }//GEN-LAST:event_waypointTableMouseClicked
+    
     /**
      * @param args the command line arguments
      */
@@ -1079,11 +1078,14 @@ public class Assignments extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
-    private javax.swing.JPanel Addressee;
+    private javax.swing.JPanel AddresseePanel;
     public static javax.swing.JTextField ArrivalTimeField;
     private javax.swing.JLabel ArrivalTimeLabel;
+    private javax.swing.JPanel DataPanel;
     private javax.swing.JLabel DepartureTimeLabel;
     private javax.swing.JButton Home;
+    private javax.swing.JLabel MandatoryFieldsLabel;
+    private javax.swing.JPanel PackagePanel;
     protected static javax.swing.JTextField addressField;
     private javax.swing.JLabel addressLabel;
     private javax.swing.JButton backButton;
@@ -1099,18 +1101,15 @@ public class Assignments extends javax.swing.JFrame {
     protected static javax.swing.JTextField driverField;
     private java.awt.Label driverLabel;
     private javax.swing.JButton driverModifyButton;
-    public static javax.swing.JTextField durationField;
-    private javax.swing.JLabel durationLabel;
     private javax.swing.JButton forwardButton;
-    private javax.swing.JLabel jLabel3;
     private javax.swing.JPanel jPanel1;
     private javax.swing.JPanel jPanel2;
+    private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JButton logOut;
     private javax.swing.JLabel mapsLabel;
+    private javax.swing.JPanel mapsLabel1;
     protected static javax.swing.JTextField nameField;
     private javax.swing.JLabel nameLabel;
-    private javax.swing.JPanel packagePanel;
-    private javax.swing.JButton plusButton;
     private javax.swing.JButton registeredClientButton;
     private javax.swing.JPanel shipPanel;
     private javax.swing.JLabel slideLabel;
@@ -1118,11 +1117,13 @@ public class Assignments extends javax.swing.JFrame {
     private javax.swing.JLabel surnameLabel;
     protected static javax.swing.JTextField telField;
     private javax.swing.JLabel telephoneLabel;
+    private javax.swing.JLabel titleLabel;
     protected static javax.swing.JTextField vehicleField;
     private java.awt.Label vehicleLabel;
     private javax.swing.JButton vehicleModifyButton;
     protected static javax.swing.JTextField volField;
     private javax.swing.JLabel volLabel;
+    protected static javax.swing.JTable waypointTable;
     protected static javax.swing.JTextField weightField;
     private javax.swing.JLabel weightLabel;
     // End of variables declaration//GEN-END:variables
